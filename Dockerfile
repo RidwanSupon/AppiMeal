@@ -1,4 +1,4 @@
-FROM php:8.3-fpm-alpine
+FROM php:8.4-fpm-alpine
 
 # Install system dependencies & PHP extensions
 RUN apk add --no-cache \
@@ -30,8 +30,8 @@ RUN mkdir -p /var/www/html/storage/framework/cache /var/www/html/storage/framewo
     && chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache \
     && chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
 
-# Install PHP dependencies
-RUN composer install --no-dev --optimize-autoloader --no-interaction
+# Install PHP dependencies with platform check bypass
+RUN composer install --no-dev --optimize-autoloader --no-interaction --ignore-platform-req=php+
 
 # Nginx & Supervisor configuration
 COPY docker/nginx.conf /etc/nginx/nginx.conf
