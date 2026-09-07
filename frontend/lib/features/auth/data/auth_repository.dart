@@ -80,7 +80,15 @@ class AuthRepository {
 
       return response.data['data'];
     } on DioException catch (e) {
-      final message = e.response?.data['message'] ?? 'Failed to upload avatar.';
+      final serverMsg = e.response?.data['message'];
+      final errors = e.response?.data['errors'];
+      String message = serverMsg ?? 'Failed to upload avatar.';
+      if (errors != null && errors is Map && errors.isNotEmpty) {
+        final firstVal = errors.values.first;
+        if (firstVal is List && firstVal.isNotEmpty) {
+          message = firstVal.first.toString();
+        }
+      }
       throw Exception(message);
     }
   }

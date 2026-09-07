@@ -104,7 +104,8 @@ class AuthController extends Controller
         }
 
         $file = $request->file('avatar');
-        $filename = 'avatar_' . $user->id . '_' . time() . '.' . $file->getClientOriginalExtension();
+        $ext = $file->getClientOriginalExtension() ?: ($file->guessExtension() ?: 'jpg');
+        $filename = 'avatar_' . $user->id . '_' . time() . '.' . $ext;
         $path = $file->storeAs('avatars', $filename, 'public');
         $avatarUrl = '/storage/' . $path;
 

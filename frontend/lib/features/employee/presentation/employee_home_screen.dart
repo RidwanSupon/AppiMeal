@@ -121,18 +121,24 @@ class _EmployeeHomeScreenState extends ConsumerState<EmployeeHomeScreen> {
                                 backgroundColor: Colors.white24,
                               ),
                               const SizedBox(width: 12),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Welcome, ${emp['name']}',
-                                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
-                                  ),
-                                  Text(
-                                    '${emp['employee_id']} • ${emp['department']}',
-                                    style: const TextStyle(color: Colors.white70, fontSize: 13),
-                                  ),
-                                ],
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Welcome, ${emp['name']}',
+                                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    Text(
+                                      '${emp['employee_id']} • ${emp['department']}',
+                                      style: const TextStyle(color: Colors.white70, fontSize: 13),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
+                                ),
                               ),
                             ],
                           ),

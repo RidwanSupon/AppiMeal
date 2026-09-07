@@ -35,6 +35,7 @@ Route::get('/health', function () {
 
 Route::get('/setup-database', function () {
     try {
+        Artisan::call('storage:link');
         Artisan::call('migrate:fresh', ['--seed' => true, '--force' => true]);
         return response()->json([
             'success' => true,

@@ -32,6 +32,9 @@ class ApiClient {
           if (token != null && token.isNotEmpty) {
             options.headers['Authorization'] = 'Bearer $token';
           }
+          if (options.data is FormData) {
+            options.headers.remove('Content-Type');
+          }
           // Log request in debug/release for diagnostic output
           // ignore: avoid_print
           print('[ApiClient] Request ➔ ${options.method} ${options.baseUrl}${options.path}');
@@ -59,9 +62,9 @@ class ApiClient {
     }
   }
 
-  Future<Response> post(String path, {dynamic data}) async {
+  Future<Response> post(String path, {dynamic data, Options? options}) async {
     try {
-      return await _dio.post(path, data: data);
+      return await _dio.post(path, data: data, options: options);
     } catch (e) {
       rethrow;
     }
