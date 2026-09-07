@@ -6,14 +6,10 @@ use App\Models\AuditLog;
 use App\Models\Department;
 use App\Models\Employee;
 use App\Models\EmployeeLedger;
-use App\Models\LunchAttendance;
-use App\Models\LunchSchedule;
-use App\Models\MealCharge;
 use App\Models\MealPriceHistory;
 use App\Models\MealSettings;
 use App\Models\Notification;
 use App\Models\NotificationPreference;
-use App\Models\Payment;
 use App\Models\Permission;
 use App\Models\Role;
 use App\Models\User;
@@ -26,27 +22,23 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         // 1. Roles
-        $superAdminRole = Role::create([
+        $superAdminRole = Role::firstOrCreate(['slug' => Role::SUPER_ADMIN], [
             'name' => 'SUPER ADMIN',
-            'slug' => Role::SUPER_ADMIN,
             'description' => 'Full control over system settings, users, pricing, payments and reports.',
         ]);
 
-        $adminRole = Role::create([
+        $adminRole = Role::firstOrCreate(['slug' => Role::ADMIN], [
             'name' => 'ADMIN',
-            'slug' => Role::ADMIN,
             'description' => 'Manages employees, lunch windows, payments, and views all reports.',
         ]);
 
-        $employeeRole = Role::create([
+        $employeeRole = Role::firstOrCreate(['slug' => Role::EMPLOYEE], [
             'name' => 'EMPLOYEE',
-            'slug' => Role::EMPLOYEE,
             'description' => 'Can schedule lunch, attend lunch, view personal ledger and history.',
         ]);
 
-        $cateringRole = Role::create([
+        $cateringRole = Role::firstOrCreate(['slug' => Role::CATERING_VIEWER], [
             'name' => 'CATERING VIEWER',
-            'slug' => Role::CATERING_VIEWER,
             'description' => 'Read-only view of daily/monthly meal counts and attendance checklist.',
         ]);
 
@@ -65,68 +57,89 @@ class DatabaseSeeder extends Seeder
         ];
 
         foreach ($permissionsList as $permData) {
-            $perm = Permission::create($permData);
-            $superAdminRole->permissions()->attach($perm->id);
+            $perm = Permission::firstOrCreate(['slug' => $permData['slug']], $permData);
+            if (!$superAdminRole->permissions()->where('permission_id', $perm->id)->exists()) {
+                $superAdminRole->permissions()->attach($perm->id);
+            }
             if (in_array($permData['slug'], ['employees.manage', 'pricing.manage', 'payments.record', 'reports.view', 'reports.export', 'catering.view'])) {
-                $adminRole->permissions()->attach($perm->id);
+                if (!$adminRole->permissions()->where('permission_id', $perm->id)->exists()) {
+                    $adminRole->permissions()->attach($perm->id);
+                }
             }
             if (in_array($permData['slug'], ['lunch.schedule', 'lunch.attend'])) {
-                $employeeRole->permissions()->attach($perm->id);
+                if (!$employeeRole->permissions()->where('permission_id', $perm->id)->exists()) {
+                    $employeeRole->permissions()->attach($perm->id);
+                }
             }
             if ($permData['slug'] === 'catering.view') {
-                $cateringRole->permissions()->attach($perm->id);
+                if (!$cateringRole->permissions()->where('permission_id', $perm->id)->exists()) {
+                    $cateringRole->permissions()->attach($perm->id);
+                }
             }
         }
 
         // 3. Departments
-        Department::create(['name' => 'Management', 'code' => 'MGMT', 'description' => 'Executive Leadership']);
-        Department::create(['name' => 'Business Development', 'code' => 'BD', 'description' => 'Strategic Partnerships & Sales']);
-        Department::create(['name' => 'Software Engineering', 'code' => 'SWE', 'description' => 'Core Software Engineering']);
-        Department::create(['name' => 'Product & Analysis', 'code' => 'PROD', 'description' => 'Product Management & Analytics']);
-        Department::create(['name' => 'UI/UX Design', 'code' => 'DES', 'description' => 'Product Design & User Experience']);
-        Department::create(['name' => 'Web Development', 'code' => 'WEB', 'description' => 'Web Development Team']);
-        Department::create(['name' => 'App Development', 'code' => 'APP', 'description' => 'Mobile App Development Team']);
+        $depts = [
+            ['name' => 'Management', 'code' => 'MGMT', 'description' => 'Executive Leadership'],
+            ['name' => 'Business Development', 'code' => 'BD', 'description' => 'Strategic Partnerships & Sales'],
+            ['name' => 'Software Engineering', 'code' => 'SWE', 'description' => 'Core Software Engineering'],
+            ['name' => 'Product & Analysis', 'code' => 'PROD', 'description' => 'Product Management & Analytics'],
+            ['name' => 'UI/UX Design', 'code' => 'DES', 'description' => 'Product Design & User Experience'],
+            ['name' => 'Web Development', 'code' => 'WEB', 'description' => 'Web Development Team'],
+            ['name' => 'App Development', 'code' => 'APP', 'description' => 'Mobile App Development Team'],
+        ];
+        foreach ($depts as $dept) {
+            Department::firstOrCreate(['code' => $dept['code']], $dept);
+        }
 
         // 4. System Settings
-        $settings = MealSettings::create([
-            'company_name' => 'Appifly BD Limited',
-            'timezone' => 'Asia/Dhaka',
-            'currency' => 'BDT',
-            'currency_symbol' => '৳',
-            'current_meal_price' => 120.00,
-            'attendance_start_time' => '12:30:00',
-            'attendance_end_time' => '14:00:00',
-            'cancellation_cutoff_time' => '11:00:00',
-            'allow_employee_cancellation' => true,
-            'charge_on_attendance_only' => true,
-            'max_planning_days' => 30,
-        ]);
+        if (!MealSettings::first()) {
+            MealSettings::create([
+                'company_name' => 'Appifly BD Limited',
+                'timezone' => 'Asia/Dhaka',
+                'currency' => 'BDT',
+                'currency_symbol' => '৳',
+                'current_meal_price' => 120.00,
+                'attendance_start_time' => '12:30:00',
+                'attendance_end_time' => '14:00:00',
+                'cancellation_cutoff_time' => '11:00:00',
+                'allow_employee_cancellation' => true,
+                'charge_on_attendance_only' => true,
+                'max_planning_days' => 30,
+            ]);
+        }
 
-        MealPriceHistory::create([
-            'price' => 120.00,
-            'effective_date' => Carbon::now()->startOfMonth()->toDateString(),
-            'notes' => 'Initial meal price setup for Appifly BD Limited',
-        ]);
+        if (!MealPriceHistory::first()) {
+            MealPriceHistory::create([
+                'price' => 120.00,
+                'effective_date' => Carbon::now()->startOfMonth()->toDateString(),
+                'notes' => 'Initial meal price setup for Appifly BD Limited',
+            ]);
+        }
 
         // 5. Admin User (info@appiflybd.com / appifly@meal)
-        $adminUser = User::create([
-            'name' => 'Appifly Admin',
-            'email' => 'info@appiflybd.com',
-            'password' => Hash::make('appifly@meal'),
-            'role_id' => $superAdminRole->id,
-            'is_active' => true,
-        ]);
-        NotificationPreference::create(['user_id' => $adminUser->id]);
+        $adminUser = User::firstOrCreate(
+            ['email' => 'info@appiflybd.com'],
+            [
+                'name' => 'Appifly Admin',
+                'password' => Hash::make('appifly@meal'),
+                'role_id' => $superAdminRole->id,
+                'is_active' => true,
+            ]
+        );
+        NotificationPreference::firstOrCreate(['user_id' => $adminUser->id]);
 
         // Catering User
-        $cateringUser = User::create([
-            'name' => 'Catering Staff',
-            'email' => 'catering@appiflybd.com',
-            'password' => Hash::make('appifly@meal'),
-            'role_id' => $cateringRole->id,
-            'is_active' => true,
-        ]);
-        NotificationPreference::create(['user_id' => $cateringUser->id]);
+        $cateringUser = User::firstOrCreate(
+            ['email' => 'catering@appiflybd.com'],
+            [
+                'name' => 'Catering Staff',
+                'password' => Hash::make('appifly@meal'),
+                'role_id' => $cateringRole->id,
+                'is_active' => true,
+            ]
+        );
+        NotificationPreference::firstOrCreate(['user_id' => $cateringUser->id]);
 
         // 6. Real Employees
         $employeeData = [
@@ -224,42 +237,49 @@ class DatabaseSeeder extends Seeder
         ];
 
         foreach ($employeeData as $data) {
-            $user = User::create([
-                'name' => $data['name'],
-                'email' => strtolower(trim($data['email'])),
-                'password' => Hash::make('password'),
-                'role_id' => $employeeRole->id,
-                'is_active' => true,
-            ]);
-            NotificationPreference::create(['user_id' => $user->id]);
+            $user = User::firstOrCreate(
+                ['email' => strtolower(trim($data['email']))],
+                [
+                    'name' => $data['name'],
+                    'password' => Hash::make('password'),
+                    'role_id' => $employeeRole->id,
+                    'is_active' => true,
+                ]
+            );
+            NotificationPreference::firstOrCreate(['user_id' => $user->id]);
 
-            $emp = Employee::create([
-                'user_id' => $user->id,
-                'employee_id' => $data['employee_id'],
-                'full_name' => $data['name'],
-                'phone' => null,
-                'department' => $data['department'],
-                'designation' => $data['designation'],
-                'joining_date' => '2026-01-01',
-                'status' => 'active',
-            ]);
+            $emp = Employee::firstOrCreate(
+                ['employee_id' => $data['employee_id']],
+                [
+                    'user_id' => $user->id,
+                    'full_name' => $data['name'],
+                    'phone' => null,
+                    'department' => $data['department'],
+                    'designation' => $data['designation'],
+                    'joining_date' => '2026-01-01',
+                    'status' => 'active',
+                ]
+            );
 
-            EmployeeLedger::create([
-                'employee_id' => $emp->id,
-                'opening_balance' => 0.00,
-                'total_meal_charges' => 0.00,
-                'total_adjustments' => 0.00,
-                'total_payments' => 0.00,
-                'current_due' => 0.00,
-            ]);
+            EmployeeLedger::firstOrCreate(
+                ['employee_id' => $emp->id],
+                [
+                    'opening_balance' => 0.00,
+                    'total_meal_charges' => 0.00,
+                    'total_adjustments' => 0.00,
+                    'total_payments' => 0.00,
+                    'current_due' => 0.00,
+                ]
+            );
 
-            Notification::create([
-                'user_id' => $user->id,
-                'title' => 'Welcome to AppiMeal',
-                'message' => 'Your Appifly BD meal account is now active.',
-                'type' => 'info',
-                'is_read' => false,
-            ]);
+            Notification::firstOrCreate(
+                ['user_id' => $user->id, 'title' => 'Welcome to AppiMeal'],
+                [
+                    'message' => 'Your Appifly BD meal account is now active.',
+                    'type' => 'info',
+                    'is_read' => false,
+                ]
+            );
         }
 
         AuditLog::log('system.seed', 'System', '1', null, ['message' => 'Database populated with Appifly BD Limited official employees']);
