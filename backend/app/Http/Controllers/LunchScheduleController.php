@@ -38,6 +38,7 @@ class LunchScheduleController extends Controller
         $calendarDays = [];
         $today = Carbon::today('Asia/Dhaka');
         $settings = MealSettings::first();
+        $weekendDays = $settings->weekend_days ?? ['Friday', 'Saturday'];
 
         for ($date = $startDate->copy(); $date->lte($endDate); $date->addDay()) {
             $dateStr = $date->toDateString();
@@ -50,13 +51,15 @@ class LunchScheduleController extends Controller
                 $status = ($status === 'PLANNED') ? 'MISSED' : 'LOCKED';
             }
 
+            $isWeekend = in_array($date->format('l'), $weekendDays);
+
             $calendarDays[] = [
                 'date' => $dateStr,
                 'day_name' => $date->format('D'),
                 'day_number' => $date->day,
                 'is_today' => $date->isToday(),
                 'is_past' => $date->lt($today),
-                'is_weekend' => $date->isWeekend(),
+                'is_weekend' => $isWeekend,
                 'status' => $status,
                 'schedule_id' => $schedule?->id,
                 'scheduled_at' => $schedule?->scheduled_at?->toIso8601String(),
@@ -93,6 +96,14 @@ class LunchScheduleController extends Controller
         $lunchDate = Carbon::parse($request->lunch_date, 'Asia/Dhaka')->startOfDay();
         $today = Carbon::today('Asia/Dhaka');
         $settings = MealSettings::first();
+        $weekendDays = $settings->weekend_days ?? ['Friday', 'Saturday'];
+
+        if (in_array($lunchDate->format('l'), $weekendDays)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Lunch scheduling is disabled on company weekend days (' . implode(', ', $weekendDays) . ').',
+            ], 422);
+        }
 
         // Validate max planning days
         if ($lunchDate->diffInDays($today) > $settings->max_planning_days) {

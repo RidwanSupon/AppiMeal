@@ -179,4 +179,50 @@ class AppiMealApiTest extends TestCase
             ->assertJsonPath('success', true)
             ->assertJsonPath('data.weekend_days', ['Friday', 'Saturday']);
     }
+
+    public function test_employee_calendar_reflects_custom_admin_weekend_days(): void
+    {
+        $admin = User::where('email', 'info@appiflybd.com')->first();
+        $employeeUser = User::where('email', 'tusher@appiflybd.com')->first();
+
+        // 1. Admin updates weekend days to Sunday only
+        $this->actingAs($admin, 'sanctum')->putJson('/api/settings', [
+            'company_name' => 'Appifly BD Limited',
+            'timezone' => 'Asia/Dhaka',
+            'currency' => 'BDT',
+            'currency_symbol' => '৳',
+            'current_meal_price' => 120.00,
+            'attendance_start_time' => '12:30:00',
+            'attendance_end_time' => '14:00:00',
+            'cancellation_cutoff_time' => '11:00:00',
+            'allow_employee_cancellation' => true,
+            'charge_on_attendance_only' => true,
+            'max_planning_days' => 30,
+            'weekend_days' => ['Sunday'],
+        ]);
+
+        // 2. Employee retrieves calendar
+        $calendarRes = $this->actingAs($employeeUser, 'sanctum')->getJson('/api/lunch/calendar');
+        $calendarRes->assertStatus(200);
+
+        $days = $calendarRes->json('data.days');
+        foreach ($days as $day) {
+            $date = Carbon::parse($day['date']);
+            if ($date->format('l') === 'Sunday') {
+                $this->assertTrue($day['is_weekend'], "Sunday should be marked as weekend");
+            } else {
+                $this->assertFalse($day['is_weekend'], "{$date->format('l')} should NOT be marked as weekend when weekend_days=['Sunday']");
+            }
+        }
+
+        // 3. Employee attempts to schedule lunch on next Sunday (should fail with 422)
+        $nextSunday = Carbon::now('Asia/Dhaka')->next(Carbon::SUNDAY)->toDateString();
+        $schedRes = $this->actingAs($employeeUser, 'sanctum')->postJson('/api/lunch/schedule', [
+            'lunch_date' => $nextSunday,
+            'participate' => true,
+        ]);
+
+        $schedRes->assertStatus(422)
+            ->assertJsonPath('success', false);
+    }
 }
