@@ -1,12 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../core/constants/api_endpoints.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../shared/widgets/custom_button.dart';
 import '../../../shared/widgets/custom_text_field.dart';
 import 'auth_provider.dart';
-
-import '../../../core/storage/secure_storage_service.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -47,69 +44,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
   }
 
-  void _showServerConfigDialog() async {
-    final storage = SecureStorageService();
-    final current = await storage.getServerUrl() ?? ApiEndpoints.baseUrl;
-    final ctrl = TextEditingController(text: current);
-
-    if (!mounted) return;
-
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('API Server IP Settings'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Enter your backend server host IP or URL:'),
-            const SizedBox(height: 12),
-            TextField(
-              controller: ctrl,
-              decoration: const InputDecoration(
-                labelText: 'Server Base URL',
-                hintText: 'e.g. http://192.168.0.103:8000',
-                prefixIcon: Icon(Icons.dns_outlined),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: [
-                ActionChip(
-                  label: const Text('Local Wi-Fi IP'),
-                  onPressed: () => ctrl.text = 'http://192.168.0.103:8000',
-                ),
-                ActionChip(
-                  label: const Text('Android Emulator'),
-                  onPressed: () => ctrl.text = 'http://10.0.2.2:8000',
-                ),
-              ],
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          ElevatedButton(
-            onPressed: () async {
-              final newUrl = ctrl.text.trim();
-              await storage.saveServerUrl(newUrl);
-              if (ctx.mounted) Navigator.pop(ctx);
-              if (mounted) {
-                setState(() {});
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('✓ Server IP updated to $newUrl')),
-                );
-              }
-            },
-            child: const Text('Save Server IP'),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);
@@ -118,13 +52,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        actions: [
-          IconButton(
-            icon: Icon(Icons.tune_rounded, color: Colors.grey.shade600),
-            tooltip: 'Server IP Settings',
-            onPressed: _showServerConfigDialog,
-          ),
-        ],
       ),
       body: SafeArea(
         child: Center(
@@ -213,6 +140,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         },
                       ),
                       const SizedBox(height: 16),
+
                       // Inline Error Banner
                       if (authState.errorMessage != null && authState.errorMessage!.isNotEmpty) ...[
                         Container(
@@ -237,41 +165,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         ),
                         const SizedBox(height: 16),
                       ],
+
                       CustomButton(
                         text: 'Sign In',
                         isLoading: authState.status == AuthStatus.loading,
                         onPressed: _handleLogin,
                         icon: Icons.login_rounded,
-                      ),
-                      const SizedBox(height: 20),
-                      // Server IP Info Footer
-                      FutureBuilder<String?>(
-                        future: SecureStorageService().getServerUrl(),
-                        builder: (context, snapshot) {
-                          final currentUrl = snapshot.data ?? ApiEndpoints.baseUrl;
-                          return InkWell(
-                            onTap: _showServerConfigDialog,
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 6.0),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(Icons.dns_outlined, size: 14, color: Colors.grey.shade600),
-                                  const SizedBox(width: 6),
-                                  Flexible(
-                                    child: Text(
-                                      'Target API: $currentUrl',
-                                      style: TextStyle(fontSize: 11, color: Colors.grey.shade600, decoration: TextDecoration.underline),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Icon(Icons.edit_outlined, size: 12, color: Colors.grey.shade600),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
                       ),
                     ],
                   ),
