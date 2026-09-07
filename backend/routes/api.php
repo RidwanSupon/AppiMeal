@@ -13,6 +13,7 @@ use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Middleware\CheckRolePermission;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -30,6 +31,22 @@ Route::get('/health', function () {
         'timezone' => config('app.timezone'),
         'timestamp' => now('Asia/Dhaka')->toIso8601String(),
     ]);
+});
+
+Route::get('/setup-database', function () {
+    try {
+        Artisan::call('migrate:fresh', ['--seed' => true, '--force' => true]);
+        return response()->json([
+            'success' => true,
+            'message' => 'Supabase Database migrated & seeded successfully!',
+            'output' => Artisan::output(),
+        ]);
+    } catch (\Throwable $e) {
+        return response()->json([
+            'success' => false,
+            'error' => $e->getMessage(),
+        ], 500);
+    }
 });
 
 // Auth Routes (Public)
