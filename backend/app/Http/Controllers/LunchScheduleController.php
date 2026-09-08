@@ -4,8 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Models\AuditLog;
 use App\Models\Employee;
+use App\Models\EmployeeLedger;
 use App\Models\LunchAttendance;
 use App\Models\LunchSchedule;
+use App\Models\MealCharge;
 use App\Models\MealSettings;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -139,12 +141,29 @@ class LunchScheduleController extends Controller
             $schedule->save();
             $actionStr = 'scheduled';
         } else {
-            if ($schedule->exists) {
-                $schedule->status = 'CANCELLED';
-                $schedule->cancelled_at = now('Asia/Dhaka');
-                $schedule->cancellation_reason = 'Opt-out by employee';
-                $schedule->save();
+            $schedule->status = 'CANCELLED';
+            $schedule->cancelled_at = now('Asia/Dhaka');
+            $schedule->cancellation_reason = 'Opt-out by employee';
+            $schedule->save();
+
+            // Clean up any attendance or meal charge if present
+            $attendance = LunchAttendance::where('employee_id', $employee->id)
+                ->where('lunch_date', $lunchDate->toDateString())
+                ->first();
+
+            if ($attendance) {
+                $charge = MealCharge::where('attendance_id', $attendance->id)->first();
+                if ($charge) {
+                    $ledger = EmployeeLedger::where('employee_id', $employee->id)->first();
+                    if ($ledger) {
+                        $ledger->total_meal_charges = max(0, $ledger->total_meal_charges - (float) $charge->amount);
+                        $ledger->recalculateDue();
+                    }
+                    $charge->delete();
+                }
+                $attendance->delete();
             }
+
             $actionStr = 'opted-out';
         }
 
@@ -205,6 +224,24 @@ class LunchScheduleController extends Controller
         $schedule->cancelled_at = now('Asia/Dhaka');
         $schedule->cancellation_reason = $request->get('reason', 'Cancelled by employee');
         $schedule->save();
+
+        // Clean up any attendance or meal charge if present
+        $attendance = LunchAttendance::where('employee_id', $employeeId)
+            ->where('lunch_date', $lunchDate->toDateString())
+            ->first();
+
+        if ($attendance) {
+            $charge = MealCharge::where('attendance_id', $attendance->id)->first();
+            if ($charge) {
+                $ledger = EmployeeLedger::where('employee_id', $employeeId)->first();
+                if ($ledger) {
+                    $ledger->total_meal_charges = max(0, $ledger->total_meal_charges - (float) $charge->amount);
+                    $ledger->recalculateDue();
+                }
+                $charge->delete();
+            }
+            $attendance->delete();
+        }
 
         AuditLog::log('lunch.cancelled', 'LunchSchedule', (string) $schedule->id, null, [
             'date' => $lunchDate->toDateString(),

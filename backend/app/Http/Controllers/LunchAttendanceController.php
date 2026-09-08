@@ -71,9 +71,9 @@ class LunchAttendanceController extends Controller
                 'raw_end_time' => $endTimeStr,
                 'is_scheduled' => $schedule && in_array($schedule->status, ['PLANNED', 'CONFIRMED', 'ATTENDED']),
                 'schedule_status' => $schedule ? $schedule->status : 'NOT_SCHEDULED',
-                'is_attended' => $attendance !== null,
-                'attendance_time' => $attendance ? $attendance->attended_at->format('h:i A') : null,
-                'can_attend' => ($windowStatus === 'OPEN') && (! $attendance) && (! $schedule || $schedule->status !== 'CANCELLED'),
+                'is_attended' => ($attendance !== null) && ($schedule && $schedule->status === 'ATTENDED'),
+                'attendance_time' => ($attendance && $schedule && $schedule->status === 'ATTENDED') ? $attendance->attended_at->format('h:i A') : null,
+                'can_attend' => ($windowStatus === 'OPEN') && (! $attendance || $schedule?->status !== 'ATTENDED') && (! $schedule || $schedule->status !== 'CANCELLED'),
             ],
         ]);
     }

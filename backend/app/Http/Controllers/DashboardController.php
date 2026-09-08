@@ -173,10 +173,10 @@ class DashboardController extends Controller
                 'today' => [
                     'date' => $todayStr,
                     'is_scheduled' => $schedule && in_array($schedule->status, ['PLANNED', 'CONFIRMED', 'ATTENDED']),
-                    'is_attended' => $attendance !== null,
-                    'attendance_time' => $attendance ? $attendance->attended_at->format('h:i A') : null,
+                    'is_attended' => ($attendance !== null) && ($schedule && $schedule->status === 'ATTENDED'),
+                    'attendance_time' => ($attendance && $schedule && $schedule->status === 'ATTENDED') ? $attendance->attended_at->format('h:i A') : null,
                     'schedule_status' => $schedule ? $schedule->status : 'NOT SCHEDULED',
-                    'can_attend' => ($windowStatus === 'OPEN') && (! $attendance) && (! $schedule || $schedule->status !== 'CANCELLED'),
+                    'can_attend' => ($windowStatus === 'OPEN') && (! $attendance || $schedule?->status !== 'ATTENDED') && (! $schedule || $schedule->status !== 'CANCELLED'),
                 ],
                 'window' => [
                     'start_time' => Carbon::createFromTimeString($settings->attendance_start_time)->format('h:i A'),
