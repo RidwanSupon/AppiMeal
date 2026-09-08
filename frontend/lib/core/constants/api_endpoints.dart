@@ -1,8 +1,10 @@
+import 'package:flutter/foundation.dart';
+
 class ApiEndpoints {
   static const String envApiUrl = String.fromEnvironment('API_URL');
 
   // Fallbacks
-  static const String defaultProductionUrl = 'https://api.appiflybd.com/api';
+  static const String defaultProductionUrl = 'https://appimeal-api.onrender.com/api';
   static const String emulatorBaseUrl = 'http://10.0.2.2:8000/api';
   static const String wifiBaseUrl = 'http://192.168.0.103:8000/api';
   static const String localBaseUrl = 'http://127.0.0.1:8000/api';
@@ -10,6 +12,10 @@ class ApiEndpoints {
   static String get baseUrl {
     if (envApiUrl.isNotEmpty) {
       return envApiUrl.endsWith('/') ? '${envApiUrl}api' : (envApiUrl.endsWith('/api') ? envApiUrl : '$envApiUrl/api');
+    }
+    if (kDebugMode) {
+      if (kIsWeb) return localBaseUrl;
+      return emulatorBaseUrl;
     }
     return defaultProductionUrl;
   }
