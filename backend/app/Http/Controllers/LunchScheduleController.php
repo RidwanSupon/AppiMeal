@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\AuditLog;
 use App\Models\Employee;
+use App\Models\LunchAttendance;
 use App\Models\LunchSchedule;
 use App\Models\MealSettings;
 use Carbon\Carbon;
@@ -14,6 +15,7 @@ class LunchScheduleController extends Controller
 {
     public function calendar(Request $request): JsonResponse
     {
+        LunchAttendance::processAutoAttendanceForDate();
         $user = $request->user();
         $employee = $user->employee;
 

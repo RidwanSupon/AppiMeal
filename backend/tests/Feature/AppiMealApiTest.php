@@ -69,21 +69,17 @@ class AppiMealApiTest extends TestCase
             ->assertJsonPath('data.status', 'PLANNED');
     }
 
-    public function test_duplicate_attendance_prevention(): void
+    public function test_planned_lunch_automatically_satisfied_when_window_starts(): void
     {
         $user = User::where('email', 'tusher@appiflybd.com')->first();
         $employee = $user->employee;
-        $today = Carbon::today('Asia/Dhaka')->toDateString();
+        $todayStr = Carbon::today('Asia/Dhaka')->toDateString();
 
-        // Configure window open
         $settings = MealSettings::first();
         $settings->attendance_start_time = '00:00:00';
         $settings->attendance_end_time = '23:59:59';
         $settings->save();
 
-        $todayStr = Carbon::today('Asia/Dhaka')->toDateString();
-
-        // Ensure clean state for today
         \App\Models\MealCharge::where('employee_id', $employee->id)->where('charge_date', $todayStr)->delete();
         \App\Models\LunchAttendance::where('employee_id', $employee->id)->where('lunch_date', $todayStr)->delete();
         LunchSchedule::where('employee_id', $employee->id)->where('lunch_date', $todayStr)->delete();
@@ -95,11 +91,50 @@ class AppiMealApiTest extends TestCase
             'scheduled_at' => now(),
         ]);
 
-        // First attendance
+        // Status request triggers auto-attendance recognition
+        $statusRes = $this->actingAs($user, 'sanctum')->getJson('/api/lunch/today-status');
+        $statusRes->assertStatus(200)
+            ->assertJsonPath('data.is_attended', true)
+            ->assertJsonPath('data.schedule_status', 'ATTENDED')
+            ->assertJsonPath('data.can_attend', false);
+
+        // Verify attendance record & charge were created
+        $this->assertDatabaseHas('lunch_attendances', [
+            'employee_id' => $employee->id,
+            'lunch_date' => $todayStr,
+        ]);
+
+        // Manual attend press is NOT allowed/needed and returns 409 Conflict
+        $attendRes = $this->actingAs($user, 'sanctum')->postJson('/api/lunch/attend');
+        $attendRes->assertStatus(409);
+    }
+
+    public function test_unplanned_lunch_requires_manual_attendance_during_window(): void
+    {
+        $user = User::where('email', 'tusher@appiflybd.com')->first();
+        $employee = $user->employee;
+        $todayStr = Carbon::today('Asia/Dhaka')->toDateString();
+
+        $settings = MealSettings::first();
+        $settings->attendance_start_time = '00:00:00';
+        $settings->attendance_end_time = '23:59:59';
+        $settings->save();
+
+        \App\Models\MealCharge::where('employee_id', $employee->id)->where('charge_date', $todayStr)->delete();
+        \App\Models\LunchAttendance::where('employee_id', $employee->id)->where('lunch_date', $todayStr)->delete();
+        LunchSchedule::where('employee_id', $employee->id)->where('lunch_date', $todayStr)->delete();
+
+        // Unplanned: no schedule row
+        $statusRes = $this->actingAs($user, 'sanctum')->getJson('/api/lunch/today-status');
+        $statusRes->assertStatus(200)
+            ->assertJsonPath('data.is_attended', false)
+            ->assertJsonPath('data.can_attend', true);
+
+        // First manual attendance succeeds
         $res1 = $this->actingAs($user, 'sanctum')->postJson('/api/lunch/attend');
         $res1->assertStatus(200)->assertJsonPath('success', true);
 
-        // Second attendance should be prevented (409 Conflict)
+        // Second manual attendance attempt returns 409 Conflict
         $res2 = $this->actingAs($user, 'sanctum')->postJson('/api/lunch/attend');
         $res2->assertStatus(409)->assertJsonPath('success', false);
     }

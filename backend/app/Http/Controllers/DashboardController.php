@@ -17,6 +17,7 @@ class DashboardController extends Controller
 {
     public function adminSummary(Request $request): JsonResponse
     {
+        LunchAttendance::processAutoAttendanceForDate();
         $todayStr = Carbon::today('Asia/Dhaka')->toDateString();
         $startOfMonth = Carbon::now('Asia/Dhaka')->startOfMonth()->toDateString();
         $endOfMonth = Carbon::now('Asia/Dhaka')->endOfMonth()->toDateString();
@@ -124,6 +125,8 @@ class DashboardController extends Controller
             return response()->json(['success' => false, 'message' => 'Employee profile not found.'], 404);
         }
 
+        LunchAttendance::processAutoAttendanceForDate();
+
         $todayStr = Carbon::today('Asia/Dhaka')->toDateString();
         $startOfMonth = Carbon::now('Asia/Dhaka')->startOfMonth()->toDateString();
         $endOfMonth = Carbon::now('Asia/Dhaka')->endOfMonth()->toDateString();
@@ -146,6 +149,16 @@ class DashboardController extends Controller
 
         $ledger = EmployeeLedger::where('employee_id', $employee->id)->first();
 
+        $now = Carbon::now('Asia/Dhaka');
+        $currentTimeStr = $now->format('H:i:s');
+        if ($currentTimeStr < $settings->attendance_start_time) {
+            $windowStatus = 'NOT STARTED';
+        } elseif ($currentTimeStr > $settings->attendance_end_time) {
+            $windowStatus = 'CLOSED';
+        } else {
+            $windowStatus = 'OPEN';
+        }
+
         return response()->json([
             'success' => true,
             'message' => 'Employee dashboard summary fetched.',
@@ -163,6 +176,7 @@ class DashboardController extends Controller
                     'is_attended' => $attendance !== null,
                     'attendance_time' => $attendance ? $attendance->attended_at->format('h:i A') : null,
                     'schedule_status' => $schedule ? $schedule->status : 'NOT SCHEDULED',
+                    'can_attend' => ($windowStatus === 'OPEN') && (! $attendance) && (! $schedule || $schedule->status !== 'CANCELLED'),
                 ],
                 'window' => [
                     'start_time' => Carbon::createFromTimeString($settings->attendance_start_time)->format('h:i A'),
@@ -180,6 +194,7 @@ class DashboardController extends Controller
 
     public function cateringSummary(Request $request): JsonResponse
     {
+        LunchAttendance::processAutoAttendanceForDate();
         $todayStr = Carbon::today('Asia/Dhaka')->toDateString();
         $startOfMonth = Carbon::now('Asia/Dhaka')->startOfMonth()->toDateString();
         $endOfMonth = Carbon::now('Asia/Dhaka')->endOfMonth()->toDateString();

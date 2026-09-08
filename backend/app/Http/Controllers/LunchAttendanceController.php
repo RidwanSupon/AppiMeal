@@ -25,6 +25,8 @@ class LunchAttendanceController extends Controller
             return response()->json(['success' => false, 'message' => 'Employee profile not found.'], 404);
         }
 
+        LunchAttendance::processAutoAttendanceForDate();
+
         $settings = MealSettings::first();
         $now = Carbon::now('Asia/Dhaka');
         $todayStr = $now->toDateString();
@@ -71,7 +73,7 @@ class LunchAttendanceController extends Controller
                 'schedule_status' => $schedule ? $schedule->status : 'NOT_SCHEDULED',
                 'is_attended' => $attendance !== null,
                 'attendance_time' => $attendance ? $attendance->attended_at->format('h:i A') : null,
-                'can_attend' => ($windowStatus === 'OPEN') && ($schedule && in_array($schedule->status, ['PLANNED', 'CONFIRMED'])) && (! $attendance),
+                'can_attend' => ($windowStatus === 'OPEN') && (! $attendance) && (! $schedule || $schedule->status !== 'CANCELLED'),
             ],
         ]);
     }
@@ -87,6 +89,8 @@ class LunchAttendanceController extends Controller
                 'message' => 'Only active employees can record lunch attendance.',
             ], 403);
         }
+
+        LunchAttendance::processAutoAttendanceForDate();
 
         $settings = MealSettings::first();
         $now = Carbon::now('Asia/Dhaka');
@@ -104,32 +108,7 @@ class LunchAttendanceController extends Controller
             ], 422);
         }
 
-        // 2. Verify employee was scheduled
-        $schedule = LunchSchedule::where('employee_id', $employee->id)
-            ->where('lunch_date', $todayStr)
-            ->first();
-
-        if (! $schedule || ! in_array($schedule->status, ['PLANNED', 'CONFIRMED'])) {
-            if ($schedule && $schedule->status === 'CANCELLED') {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Your lunch schedule for today was cancelled.',
-                ], 422);
-            }
-            if ($schedule && $schedule->status === 'ATTENDED') {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Lunch attendance has already been recorded for today.',
-                ], 409);
-            }
-
-            return response()->json([
-                'success' => false,
-                'message' => 'You did not schedule lunch for today.',
-            ], 422);
-        }
-
-        // 3. Verify duplicate attendance
+        // 2. Verify duplicate attendance
         $existingAttendance = LunchAttendance::where('employee_id', $employee->id)
             ->where('lunch_date', $todayStr)
             ->first();
@@ -144,7 +123,37 @@ class LunchAttendanceController extends Controller
             ], 409);
         }
 
+        // 3. Verify schedule status if cancelled or already attended
+        $schedule = LunchSchedule::where('employee_id', $employee->id)
+            ->where('lunch_date', $todayStr)
+            ->first();
+
+        if ($schedule && $schedule->status === 'CANCELLED') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Your lunch schedule for today was cancelled.',
+            ], 422);
+        }
+
+        if ($schedule && $schedule->status === 'ATTENDED') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Lunch attendance has already been recorded for today.',
+            ], 409);
+        }
+
         return DB::transaction(function () use ($employee, $schedule, $todayStr, $now, $settings, $user, $request) {
+            if (! $schedule) {
+                $schedule = LunchSchedule::create([
+                    'employee_id' => $employee->id,
+                    'lunch_date' => $todayStr,
+                    'status' => 'ATTENDED',
+                    'scheduled_at' => $now,
+                ]);
+            } else {
+                $schedule->status = 'ATTENDED';
+                $schedule->save();
+            }
             // Record Attendance
             $attendance = LunchAttendance::create([
                 'employee_id' => $employee->id,
@@ -202,6 +211,7 @@ class LunchAttendanceController extends Controller
 
     public function todayList(Request $request): JsonResponse
     {
+        LunchAttendance::processAutoAttendanceForDate();
         $todayStr = Carbon::today('Asia/Dhaka')->toDateString();
         $settings = MealSettings::first();
 
@@ -272,6 +282,7 @@ class LunchAttendanceController extends Controller
     public function adminManageList(Request $request): JsonResponse
     {
         $dateStr = $request->get('date', Carbon::today('Asia/Dhaka')->toDateString());
+        LunchAttendance::processAutoAttendanceForDate($dateStr);
         $settings = MealSettings::first();
 
         $query = Employee::with(['user', 'schedules' => function ($q) use ($dateStr) {

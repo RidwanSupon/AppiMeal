@@ -95,6 +95,8 @@ class _EmployeeHomeScreenState extends ConsumerState<EmployeeHomeScreen> {
 
           final isAttended = today['is_attended'] == true;
           final isScheduled = today['is_scheduled'] == true;
+          final canAttend = today['can_attend'] == true;
+          final isCancelled = today['schedule_status'] == 'CANCELLED';
 
           return RefreshIndicator(
             onRefresh: () async => ref.invalidate(employeeSummaryProvider),
@@ -213,20 +215,39 @@ class _EmployeeHomeScreenState extends ConsumerState<EmployeeHomeScreen> {
                                 ],
                               ),
                             ),
+                          ] else if (isCancelled) ...[
+                            Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: AppColors.error.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
+                              ),
+                              child: const Row(
+                                children: [
+                                  Icon(Icons.cancel_rounded, color: AppColors.error, size: 28),
+                                  SizedBox(width: 12),
+                                  Text(
+                                    'Lunch schedule cancelled for today.',
+                                    style: TextStyle(color: AppColors.error, fontWeight: FontWeight.bold, fontSize: 14),
+                                  ),
+                                ],
+                              ),
+                            ),
                           ] else ...[
                             CustomButton(
                               text: 'ATTEND LUNCH',
                               icon: Icons.touch_app_rounded,
                               isLoading: _isAttending,
-                              backgroundColor: isScheduled ? AppColors.secondary : Colors.grey,
-                              onPressed: isScheduled ? _attendLunch : null,
+                              backgroundColor: canAttend ? AppColors.secondary : Colors.grey,
+                              onPressed: canAttend ? _attendLunch : null,
                             ),
-                            if (!isScheduled)
+                            if (!canAttend && !isScheduled)
                               const Padding(
                                 padding: EdgeInsets.only(top: 8.0),
                                 child: Text(
-                                  'You have not scheduled lunch for today.',
-                                  style: TextStyle(color: AppColors.error, fontSize: 12),
+                                  'Unplanned lunch check-in is allowed only during attendance window.',
+                                  style: TextStyle(color: Colors.grey, fontSize: 12),
                                 ),
                               ),
                           ],

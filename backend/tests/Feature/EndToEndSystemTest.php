@@ -270,14 +270,7 @@ class EndToEndSystemTest extends TestCase
         LunchAttendance::where('employee_id', $this->employeeModel->id)->where('lunch_date', $today)->delete();
         LunchSchedule::where('employee_id', $this->employeeModel->id)->where('lunch_date', $today)->delete();
 
-        LunchSchedule::create([
-            'employee_id' => $this->employeeModel->id,
-            'lunch_date' => $today,
-            'status' => 'PLANNED',
-            'scheduled_at' => now(),
-        ]);
-
-        // Attend meal
+        // Unplanned lunch: employee manually clicks attend during open window
         $attendRes = $this->actingAs($this->employeeUser, 'sanctum')->postJson('/api/lunch/attend');
         $attendRes->assertStatus(200)->assertJsonPath('success', true);
 
