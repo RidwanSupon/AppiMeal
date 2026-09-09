@@ -72,6 +72,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Employee Dashboards & Features
     Route::get('/dashboard/employee', [DashboardController::class, 'employeeSummary']);
     Route::get('/lunch/today-status', [LunchAttendanceController::class, 'todayStatus']);
+    Route::get('/lunch/today-list', [LunchAttendanceController::class, 'todayList']);
     Route::get('/lunch/calendar', [LunchScheduleController::class, 'calendar']);
     Route::post('/lunch/schedule', [LunchScheduleController::class, 'schedule']);
     Route::post('/lunch/cancel', [LunchScheduleController::class, 'cancel']);
@@ -81,7 +82,6 @@ Route::middleware('auth:sanctum')->group(function () {
     // Catering Viewer Dashboard
     Route::middleware(CheckRolePermission::class . ':catering_viewer,admin,super_admin')->group(function () {
         Route::get('/dashboard/catering', [DashboardController::class, 'cateringSummary']);
-        Route::get('/lunch/today-list', [LunchAttendanceController::class, 'todayList']);
     });
 
     // Admin & Super Admin Management Routes

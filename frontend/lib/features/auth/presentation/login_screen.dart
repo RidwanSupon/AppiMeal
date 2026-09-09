@@ -135,17 +135,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final authState = ref.watch(authProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.settings_ethernet_rounded, color: AppColors.primary),
-            tooltip: 'Server Settings',
-            onPressed: _showServerSettingsDialog,
-          ),
-        ],
-      ),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -158,7 +147,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 Center(
                   child: Image.asset(
                     'assets/images/logo.png',
-                    height: 90,
+                    height: 100,
                     fit: BoxFit.contain,
                   ),
                 ),
@@ -171,23 +160,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         color: AppColors.primary,
                       ),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  'Appifly BD Limited',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Colors.grey.shade600,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Employee Lunch & Attendance System',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
-                ),
-                const SizedBox(height: 32),
+                const SizedBox(height: 24),
 
                 // Form
                 Form(
@@ -264,6 +237,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         isLoading: authState.status == AuthStatus.loading,
                         onPressed: _handleLogin,
                         icon: Icons.login_rounded,
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Server Settings Link
+                      TextButton.icon(
+                        onPressed: _showServerSettingsDialog,
+                        icon: const Icon(Icons.dns_outlined, size: 18, color: Colors.grey),
+                        label: const Text(
+                          'Server Settings',
+                          style: TextStyle(color: Colors.grey, fontSize: 13),
+                        ),
                       ),
                     ],
                   ),

@@ -252,6 +252,7 @@ class LunchAttendanceController extends Controller
                 'full_name' => $emp->full_name,
                 'department' => $emp->department,
                 'designation' => $emp->designation,
+                'avatar_url' => $emp->avatar_url,
                 'is_scheduled' => $isScheduled,
                 'is_attended' => $isAttended,
                 'is_cancelled' => $isCancelled,

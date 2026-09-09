@@ -63,4 +63,9 @@ class EmployeeRepository {
     final response = await _apiClient.get('/dashboard/employee');
     return response.data['data'];
   }
+
+  Future<Map<String, dynamic>> getTodayList() async {
+    final response = await _apiClient.get(ApiEndpoints.todayList);
+    return response.data['data'];
+  }
 }

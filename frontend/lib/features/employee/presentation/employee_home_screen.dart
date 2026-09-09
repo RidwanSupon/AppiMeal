@@ -13,6 +13,11 @@ final employeeSummaryProvider = FutureProvider.autoDispose((ref) async {
   return await repo.getEmployeeSummary();
 });
 
+final todayListProvider = FutureProvider.autoDispose((ref) async {
+  final repo = EmployeeRepository();
+  return await repo.getTodayList();
+});
+
 class EmployeeHomeScreen extends ConsumerStatefulWidget {
   final Function(int) onTabChange;
 
@@ -42,6 +47,7 @@ class _EmployeeHomeScreenState extends ConsumerState<EmployeeHomeScreen> {
           ),
         );
         ref.invalidate(employeeSummaryProvider);
+        ref.invalidate(todayListProvider);
       }
     } catch (e) {
       if (mounted) {
@@ -77,7 +83,10 @@ class _EmployeeHomeScreenState extends ConsumerState<EmployeeHomeScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: () => ref.invalidate(employeeSummaryProvider),
+            onPressed: () {
+              ref.invalidate(employeeSummaryProvider);
+              ref.invalidate(todayListProvider);
+            },
           ),
         ],
       ),
@@ -85,7 +94,10 @@ class _EmployeeHomeScreenState extends ConsumerState<EmployeeHomeScreen> {
         loading: () => const LoadingIndicator(message: 'Loading your dashboard...'),
         error: (err, stack) => ErrorRetryWidget(
           errorMessage: err.toString(),
-          onRetry: () => ref.invalidate(employeeSummaryProvider),
+          onRetry: () {
+            ref.invalidate(employeeSummaryProvider);
+            ref.invalidate(todayListProvider);
+          },
         ),
         data: (data) {
           final emp = data['employee'];
@@ -99,7 +111,10 @@ class _EmployeeHomeScreenState extends ConsumerState<EmployeeHomeScreen> {
           final isCancelled = today['schedule_status'] == 'CANCELLED';
 
           return RefreshIndicator(
-            onRefresh: () async => ref.invalidate(employeeSummaryProvider),
+            onRefresh: () async {
+              ref.invalidate(employeeSummaryProvider);
+              ref.invalidate(todayListProvider);
+            },
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(16.0),
               physics: const AlwaysScrollableScrollPhysics(),
@@ -254,6 +269,110 @@ class _EmployeeHomeScreenState extends ConsumerState<EmployeeHomeScreen> {
                         ],
                       ),
                     ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Who's Attending Today Section
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        "Who's Attending Today",
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                      ),
+                      ref.watch(todayListProvider).maybeWhen(
+                        data: (todayData) => Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            '${todayData['total_attended']} / ${todayData['total_scheduled']} Attended',
+                            style: const TextStyle(
+                              color: AppColors.primary,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        orElse: () => const SizedBox.shrink(),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  ref.watch(todayListProvider).when(
+                    loading: () => const Card(
+                      child: Padding(
+                        padding: EdgeInsets.all(24.0),
+                        child: Center(child: CircularProgressIndicator()),
+                      ),
+                    ),
+                    error: (err, _) => Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Text('Error loading today\'s list: $err', style: const TextStyle(color: AppColors.error, fontSize: 12)),
+                      ),
+                    ),
+                    data: (todayData) {
+                      final List employees = todayData['employees'] ?? [];
+                      if (employees.isEmpty) {
+                        return const Card(
+                          child: Padding(
+                            padding: EdgeInsets.all(16.0),
+                            child: Center(
+                              child: Text(
+                                'No employees scheduled for today yet.',
+                                style: TextStyle(color: Colors.grey),
+                              ),
+                            ),
+                          ),
+                        );
+                      }
+                      return Card(
+                        child: ListView.separated(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: employees.length,
+                          separatorBuilder: (_, __) => const Divider(height: 1),
+                          itemBuilder: (context, index) {
+                            final item = employees[index];
+                            final isAttendedItem = item['is_attended'] == true;
+                            final status = item['status'] ?? 'NOT_SCHEDULED';
+
+                            return ListTile(
+                              leading: EmployeeAvatar(
+                                avatarUrl: item['avatar_url'],
+                                name: item['full_name'] ?? 'Employee',
+                                radius: 20,
+                              ),
+                              title: Text(
+                                item['full_name'] ?? '',
+                                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                              ),
+                              subtitle: Text(
+                                '${item['department'] ?? ''} • ${item['designation'] ?? ''}',
+                                style: const TextStyle(fontSize: 12, color: Colors.grey),
+                              ),
+                              trailing: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  StatusBadge(status: status),
+                                  if (isAttendedItem && item['attendance_time'] != null) ...[
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      item['attendance_time'],
+                                      style: const TextStyle(fontSize: 11, color: Colors.grey),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                      );
+                    },
                   ),
                   const SizedBox(height: 24),
 
