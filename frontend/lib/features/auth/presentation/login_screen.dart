@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../core/constants/api_endpoints.dart';
 import '../../../core/constants/app_colors.dart';
-import '../../../core/storage/secure_storage_service.dart';
 import '../../../shared/widgets/custom_button.dart';
 import '../../../shared/widgets/custom_text_field.dart';
 import 'auth_provider.dart';
@@ -25,90 +23,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
-  }
-
-  void _showServerSettingsDialog() async {
-    final storage = SecureStorageService();
-    final currentUrl = await storage.getServerUrl() ?? ApiEndpoints.baseUrl;
-    final urlController = TextEditingController(text: currentUrl);
-
-    if (!mounted) return;
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Row(
-          children: [
-            Icon(Icons.dns_rounded, color: AppColors.primary),
-            SizedBox(width: 8),
-            Text('Backend Server Config'),
-          ],
-        ),
-        content: StatefulBuilder(
-          builder: (context, setDialogState) => Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Configure API Server Base URL:',
-                style: TextStyle(fontSize: 13, color: Colors.grey),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: urlController,
-                decoration: const InputDecoration(
-                  labelText: 'API Base URL',
-                  hintText: 'http://10.0.2.2:8000/api',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 12),
-              const Text('Quick Presets:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-              const SizedBox(height: 6),
-              Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: [
-                  ActionChip(
-                    label: const Text('Emulator (10.0.2.2)'),
-                    onPressed: () => setDialogState(() => urlController.text = ApiEndpoints.emulatorBaseUrl),
-                  ),
-                  ActionChip(
-                    label: const Text('Render Production'),
-                    onPressed: () => setDialogState(() => urlController.text = ApiEndpoints.defaultProductionUrl),
-                  ),
-                  ActionChip(
-                    label: const Text('Localhost (127.0.0.1)'),
-                    onPressed: () => setDialogState(() => urlController.text = ApiEndpoints.localBaseUrl),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              final newUrl = urlController.text.trim();
-              if (newUrl.isNotEmpty) {
-                await storage.saveServerUrl(newUrl);
-                if (context.mounted) {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Server URL set to: $newUrl')),
-                  );
-                }
-              }
-            },
-            child: const Text('Save URL'),
-          ),
-        ],
-      ),
-    );
   }
 
   void _handleLogin() async {
@@ -237,17 +151,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         isLoading: authState.status == AuthStatus.loading,
                         onPressed: _handleLogin,
                         icon: Icons.login_rounded,
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Server Settings Link
-                      TextButton.icon(
-                        onPressed: _showServerSettingsDialog,
-                        icon: const Icon(Icons.dns_outlined, size: 18, color: Colors.grey),
-                        label: const Text(
-                          'Server Settings',
-                          style: TextStyle(color: Colors.grey, fontSize: 13),
-                        ),
                       ),
                     ],
                   ),
